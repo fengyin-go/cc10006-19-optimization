@@ -18,6 +18,11 @@
       </article>
     </div>
 
+    <p v-if="alerts" class="page-desc">
+      质量告警合计 {{ alerts.total }} 条：本模块异常 {{ alerts.qualityAbnormal }} 条 ·
+      审计状态折算 {{ alerts.auditAlerts }} 条（与审计页实时同步）
+    </p>
+
     <form class="filter-bar" @submit.prevent="reload">
       <label v-for="field in filterFields" :key="field" class="filter-item">
         <span>{{ field }}</span>
@@ -65,7 +70,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
-import { request } from '@/api/client'
+import { fetchJson, request } from '@/api/client'
 
 type Row = Record<string, string | number | null>
 
@@ -80,6 +85,17 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const alerts = ref<{ total: number; qualityAbnormal: number; auditAlerts: number } | null>(null)
+
+async function loadAlerts() {
+  try {
+    alerts.value = await fetchJson<{ total: number; qualityAbnormal: number; auditAlerts: number }>(
+      `${ENDPOINT}/alerts`,
+    )
+  } catch {
+    // 告警汇总失败不影响列表展示。
+  }
+}
 
 function resetFilters() {
   filters.value = {}
@@ -121,10 +137,13 @@ async function reload() {
     const payload = await response.json()
     rows.value = payload.items ?? []
     total.value = payload.total ?? rows.value.length
+    await loadAlerts()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '质量监控列表读取失败'
   }
 }
 
-onMounted(reload)
+onMounted(async () => {
+  await Promise.all([reload(), loadAlerts()])
+})
 </script>

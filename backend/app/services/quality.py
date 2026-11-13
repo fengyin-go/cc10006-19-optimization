@@ -11,6 +11,14 @@ STATUS_ORDER = ["草稿", "待校验", "已启用", "已停用"]
 ACTION_RULES = {"提交校验": "待校验", "启用监控": "已启用", "停用监控": "已停用"}
 NEGATIVE_ACTIONS = ["停用监控"]
 
+# 审计日志的异常会以「审计告警」的形式进入质量告警口径，保证两边对得上。
+AUDIT_ALERT_SOURCE = "audit"
+
+
+def audit_alert_count() -> int:
+    """统计审计模块当前处于告警（待审核）状态的日志数。"""
+    return sum(1 for row in store.rows("audit") if row.get("abnormal"))
+
 
 class QualityService:
     def list_entries(
@@ -32,6 +40,17 @@ class QualityService:
 
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
         return store.find(MODULE, entry_id)
+
+    def alerts(self) -> dict[str, Any]:
+        """质量告警总览：本模块异常指标 + 由审计状态实时折算的告警。"""
+        rows = store.rows(MODULE)
+        quality_abnormal = sum(1 for row in rows if row.get("abnormal"))
+        audit_alerts = audit_alert_count()
+        return {
+            "qualityAbnormal": quality_abnormal,
+            "auditAlerts": audit_alerts,
+            "total": quality_abnormal + audit_alerts,
+        }
 
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
         missing = [field for field in REQUIRED_FIELDS if not str(values.get(field) or "").strip()]

@@ -4,16 +4,26 @@
 """
 from __future__ import annotations
 
+import copy
 from typing import Any
 
-from app.seed import SEED_ROWS
+from app.seed import OWNER_DIRECTORY, SEED_ROWS
 
 
 class Store:
     def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        """恢复示例数据。
+
+        history / 关联质量指标这类字段是嵌套结构，必须深拷贝；否则多个 Store 实例
+        会共享同一份列表，测试之间互相污染。
+        """
         self._tables: dict[str, list[dict[str, Any]]] = {
-            name: [dict(row) for row in rows] for name, rows in SEED_ROWS.items()
+            name: [copy.deepcopy(row) for row in rows] for name, rows in SEED_ROWS.items()
         }
+        self._owner_directory: dict[str, str] = copy.deepcopy(OWNER_DIRECTORY)
 
     def module_names(self) -> list[str]:
         return sorted(self._tables)
@@ -27,6 +37,9 @@ class Store:
                 return row
         return None
 
+    def owner_directory(self) -> dict[str, str]:
+        return self._owner_directory
+
     def overview(self) -> dict[str, object]:
         modules: list[dict[str, object]] = []
         for name in self.module_names():
@@ -34,6 +47,7 @@ class Store:
             modules.append({
                 "name": name,
                 "created": len(rows),
+                # 待处理与异常都从行上的实时标记汇总，任何模块改了状态这里立刻可见。
                 "pending": sum(1 for row in rows if row.get("pending")),
                 "abnormal": sum(1 for row in rows if row.get("abnormal")),
             })

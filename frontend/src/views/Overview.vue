@@ -12,6 +12,10 @@
         <strong class="stat-value">{{ card.value }}</strong>
       </article>
     </div>
+    <p v-if="audit" class="page-desc">
+      操作审计：待办 {{ audit.pending }} 条 · 质量告警 {{ audit.qualityAlerts }} 条 ·
+      待处理影响行数 {{ audit.impactRows }} · 已转交 {{ audit.transferred }} 条
+    </p>
     <table class="data-table">
       <thead>
         <tr><th>业务模块</th><th>今日新增</th><th>待处理</th><th>异常量</th></tr>
@@ -36,16 +40,19 @@ import { fetchJson } from '@/api/client'
 type Overview = {
   cards: { label: string; value: number }[]
   modules: { name: string; created: number; pending: number; abnormal: number }[]
+  audit?: { pending: number; qualityAlerts: number; impactRows: number; transferred: number }
 }
 
 const cards = ref<Overview['cards']>([])
 const moduleRows = ref<Overview['modules']>([])
+const audit = ref<Overview['audit']>()
 
 onMounted(async () => {
   try {
     const payload = await fetchJson<Overview>('/api/overview')
     cards.value = payload.cards
     moduleRows.value = payload.modules
+    audit.value = payload.audit
   } catch {
     cards.value = [{"label": "业务模块", "value": 0}, {"label": "今日新增", "value": 0}]
     moduleRows.value = [{"name": "数据编目", "created": 0, "pending": 0, "abnormal": 0}, {"name": "多源接入", "created": 0, "pending": 0, "abnormal": 0}, {"name": "原始层管理", "created": 0, "pending": 0, "abnormal": 0}, {"name": "清洗层管理", "created": 0, "pending": 0, "abnormal": 0}, {"name": "聚合层管理", "created": 0, "pending": 0, "abnormal": 0}, {"name": "湖区分区", "created": 0, "pending": 0, "abnormal": 0}, {"name": "流式处理", "created": 0, "pending": 0, "abnormal": 0}, {"name": "批量转换", "created": 0, "pending": 0, "abnormal": 0}, {"name": "版本快照", "created": 0, "pending": 0, "abnormal": 0}, {"name": "湖仓治理", "created": 0, "pending": 0, "abnormal": 0}, {"name": "元数据中心", "created": 0, "pending": 0, "abnormal": 0}, {"name": "血缘图谱", "created": 0, "pending": 0, "abnormal": 0}, {"name": "质量监控", "created": 0, "pending": 0, "abnormal": 0}, {"name": "编排调度", "created": 0, "pending": 0, "abnormal": 0}, {"name": "历史回填", "created": 0, "pending": 0, "abnormal": 0}, {"name": "数据检索", "created": 0, "pending": 0, "abnormal": 0}, {"name": "资源计量", "created": 0, "pending": 0, "abnormal": 0}, {"name": "操作审计", "created": 0, "pending": 0, "abnormal": 0}]
